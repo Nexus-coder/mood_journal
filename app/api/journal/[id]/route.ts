@@ -19,13 +19,15 @@ export const PATCH = async (request: Request, { params }: { params: { id: string
     })
 
     const analysis = await analyze(updatedEntry.content)
+
     const newAnalysis = await prisma.analysis.update({
         where: {
-            entryId: updatedEntry.id
+            entryId: updatedEntry.id,
         },
         data: {
             ...analysis
         }
     })
-    return NextResponse.json({ data: updatedEntry })
+    console.log('newAnalysis', newAnalysis)
+    return NextResponse.json({ data: { ...updatedEntry, analysis: newAnalysis } })
 }

@@ -10,7 +10,8 @@ const createUser = async () => {
             clerkId: user?.id
         }
     })
-    //If the user is not ound create a new user in the database
+    
+    //If the user is not found create a new user in the database
     if (!foundUser) {
         try {
             await prisma.user.create({

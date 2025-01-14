@@ -1,22 +1,37 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
-import { StructuredTool } from "@langchain/core/tools"
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OpenAI, OpenAIEmbeddings } from "@langchain/openai";
+
+import { HarmBlockThreshold, HarmCategory, TaskType } from "@google/generative-ai";
 import { StructuredOutputParser } from "@langchain/core/output_parsers"
 import { PromptTemplate } from "@langchain/core/prompts"
-import z from "zod"
+import { MemoryVectorStore } from "langchain/vectorstores/memory"
+import { loadQARefineChain } from "langchain/chains"
+
+
+import z, { date } from "zod"
+
+import { JournalEntry } from "@prisma/client";
+import { Document } from "@langchain/core/documents"
 
 const parser = StructuredOutputParser.fromZodSchema(
     z.object({
+        sentimentScore: z.
+        number()
+        .describe('sentiment of the text and rated on a scale from -10 to 10, where -10 is extremely negative, 0 is neutral, and 10 is extremely positive.'),
         mood: z
             .string()
             .describe('the mood of the person who wrote the journal entry.'),
-        subject: z.string().describe('the subject of the journal entry.'),
+        subject: z
+            .string()
+            .describe('the subject of the journal entry.'),
         negative: z
             .boolean()
             .describe(
                 'is the journal entry negative? (i.e. does it contain negative emotions?).'
             ),
-        summary: z.string().describe('quick summary of the entire entry.'),
+        summary: z
+            .string()
+            .describe('quick summary of the entire entry.'),
         color: z
             .string()
             .describe(
@@ -30,7 +45,7 @@ const getPrompt = async (content: string) => {
 
     const prompt = new PromptTemplate({
         template:
-            'Analyze the following journal entry. Follow the intrusctions and format your response to match the format instructions, no matter what! \n{format_instructions}\n{entry}',
+            'Analyze the following journal entry. Follow the intructions and format your response to match the format instructions, no matter what! \n{format_instructions}\n{entry}',
         inputVariables: ['entry'],
         partialVariables: { format_instructions },
     })
@@ -40,15 +55,6 @@ const getPrompt = async (content: string) => {
     })
     return input
 }
-
-/*
- * Before running this, you should make sure you have created a
- * Google Cloud Project that has `generativelanguage` API enabled.
- *
- * You will also need to generate an API key and set
- * an environment variable GOOGLE_API_KEY
- *
- */
 
 // Text
 
@@ -74,8 +80,37 @@ export const analyze = async (content: string) => {
         ],
     ]);
     try {
+        console.log('res', res.content)
         return parser.parse(res.content as string)
     } catch (error) {
         console.log(error)
     }
+}
+
+export const qa = async (question:string, entries:JournalEntry[]) => {
+console.log('question', question)
+
+    const docs = entries.map(
+        (entry) => {
+            return new Document({
+                pageContent: entry.content,
+                metadata: { source: entry.id, date: entry.createdAt },
+            })
+        })
+
+    const model = new OpenAI({ temperature: 0, modelName: 'gpt-3.5-turbo' })
+    const chain = loadQARefineChain(model)
+    const embeddings = new OpenAIEmbeddings()
+
+    const vectorStore = await MemoryVectorStore.fromDocuments(docs, embeddings)
+
+    const relevantDocs = await vectorStore.similaritySearch(question)
+    const res = await chain.invoke({
+        input_documents: relevantDocs,
+        question
+    })
+
+    return res.output_text
+
+
 }
