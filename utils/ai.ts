@@ -80,15 +80,13 @@ export const analyze = async (content: string) => {
         ],
     ]);
     try {
-        console.log('res', res.content)
         return parser.parse(res.content as string)
     } catch (error) {
-        console.log(error)
+        return null
     }
 }
 
 export const qa = async (question:string, entries:JournalEntry[]) => {
-console.log('question', question)
 
     const docs = entries.map(
         (entry) => {

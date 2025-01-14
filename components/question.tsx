@@ -14,7 +14,6 @@ const Question = () => {
         e.preventDefault()
         setLoading(true)
         let answer = await askQuestion(value)
-        console.log('answer', answer)
         setValue('')
         setAnswer(answer)
         setLoading(false)

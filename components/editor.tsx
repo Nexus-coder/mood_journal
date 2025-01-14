@@ -30,7 +30,6 @@ export const Editor = ({ entry }: { entry: JournalEntry & { analysis: Analysis }
             setIsLoading(false)
         }
     })
-    console.log("This is loading", isLoading)
     return (
         <div className="h-full w-full grid grid-cols-3">
             <div className="col-span-2">
